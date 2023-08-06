@@ -57,17 +57,28 @@ jobs:
       - name: Get Output Directory
         run: echo "output_path=$(find . -path '*build/outputs/apk' | head -n 1)" >> $GITHUB_ENV
 
+      - name: Sign APK with testkey
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: ${{ env.output_path }}/release/
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
       # Upload Artifact Build
       # Noted For Output [main_project_module]/build/outputs/apk/debug/
       - name: Upload APK Debug - ${{ env.repository_name }}
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - APK(s) debug generated
+          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - debug
           path: ${{ env.output_path }}/debug/
 
       # Noted For Output [main_project_module]/build/outputs/apk/release/
       - name: Upload APK Release - ${{ env.repository_name }}
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - APK(s) release generated
-          path: ${{ env.output_path }}/release/
+          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - release signed
+          # path: ${{ env.output_path }}/release/
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
