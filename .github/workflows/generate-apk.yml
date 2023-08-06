@@ -55,7 +55,7 @@ jobs:
         run: ./gradlew assemble
 
       - name: Get Output Directory
-        run: echo "outputs_path=$(find ~+ -path '*build/outputs*' | awk '{print $1}')" >> $GITHUB_ENV
+        run: echo "output_path=$(find . -path '*build/outputs/apk')" >> $GITHUB_ENV
 
       # Upload Artifact Build
       # Noted For Output [main_project_module]/build/outputs/apk/debug/
@@ -63,11 +63,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - APK(s) debug generated
-          path: ${{ env.outputs_path }}/apk/debug/
+          path: ${{ env.output_path }}/debug/
 
       # Noted For Output [main_project_module]/build/outputs/apk/release/
       - name: Upload APK Release - ${{ env.repository_name }}
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - APK(s) release generated
-          path: ${{ env.outputs_path }}/apk/release/
+          path: ${{ env.output_path }}/release/
