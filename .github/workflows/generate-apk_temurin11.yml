@@ -1,0 +1,85 @@
+name: Generated APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "github repo (only need user/repo path, not full URL)"
+        required: true
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    if: ${{ inputs.repository }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repository }}
+          submodules: recursive
+
+      # Set Current Date As Env Variable
+      - name: Set current date as env variable
+        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      # Set Repository Info Into Env Variable
+      - name: Set repository name as env variable
+        run: |
+          echo "repository_name=$(echo '${{ inputs.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+          echo "author_name=$(echo '${{ inputs.repository }}' | awk -F '/' '{print $1}')" >> $GITHUB_ENV
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      # Run Tests Build
+      # - name: Run gradle tests
+      #   run: ./gradlew test
+
+      # Run Build Project
+      # - name: Build gradle project
+      #   run: ./gradlew build
+
+      # Create APK Debug
+      - name: Build apk debug for ${{ env.repository_name }}
+        run: ./gradlew assembleDebug
+
+      # Create APK Release
+      - name: Build apk release for ${{ env.repository_name }}
+        run: ./gradlew assemble
+
+      - name: Get Output Directory
+        run: echo "output_path=$(find . -path '*build/outputs/apk' | head -n 1)" >> $GITHUB_ENV
+
+      - name: Sign APK with testkey
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: ${{ env.output_path }}/release/
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      # Upload Artifact Build
+      # Noted For Output [main_project_module]/build/outputs/apk/debug/
+      - name: Upload APK Debug - ${{ env.repository_name }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - debug
+          path: ${{ env.output_path }}/debug/
+
+      # Noted For Output [main_project_module]/build/outputs/apk/release/
+      - name: Upload APK Release - ${{ env.repository_name }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - release signed
+          # path: ${{ env.output_path }}/release/
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
