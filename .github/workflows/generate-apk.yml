@@ -1,4 +1,4 @@
-name: Generated APK
+name: Generated APK - Zulu 17
 
 on:
   workflow_dispatch:
