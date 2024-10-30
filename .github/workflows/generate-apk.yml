@@ -34,7 +34,7 @@ on:
         required: true
         default: false
 
-run-name: "Generate APK for repo ${{ inputs.repository }} (${{ inputs.javaRuntime }} - ${{ inputs.javaVersion }}"
+run-name: "Generate APK for repo ${{ inputs.repository }} with ${{ inputs.javaRuntime }}v${{ inputs.javaVersion }}"
 
 jobs:
   build:
