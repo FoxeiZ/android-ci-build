@@ -4,8 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       repository:
-        description: "github repo (only need user/repo path, not full URL)"
+        description: "Github repo's URL"
         required: true
+
+      repoBranch:
+        description: "Which branch should we use? (also works with tags name, this will overwrite the tag in URL if it has one)"
+
       javaRuntime:
         description: 'Select java runtime env'
         required: true
@@ -24,17 +28,19 @@ on:
           - dragonwell
           - sapmachine
           - graalvm
+      
       javaVersion:
         description: 'Input your Java version'
         required: true
         default: '17'
+      
       runTestBuild:
         description: 'Run build test before building the app'
         type: boolean
         required: true
         default: false
 
-run-name: "Generate APK for repo ${{ inputs.repository }} with ${{ inputs.javaRuntime }}v${{ inputs.javaVersion }}"
+run-name: "Generate APK for ${{ inputs.repository }} with ${{ inputs.javaRuntime }}v${{ inputs.javaVersion }}"
 
 jobs:
   build:
@@ -42,20 +48,32 @@ jobs:
 
     if: ${{ inputs.repository }}
     steps:
-      - uses: actions/checkout@v3
+      - name: "Extract info from repo's URL"
+        run: |
+          url={{ inputs.repository }}
+          echo "hostname=$(echo '{{ inputs.repository }}' | awk -F/ '{print $1"//"$3}')" >> $GITHUB_ENV
+          echo "username=$(echo '{{ inputs.repository }}' | awk -F/ '{print $4}')" >> $GITHUB_ENV
+          echo "repo_name=$(echo '{{ inputs.repository }}' | awk -F/ '{print $5}')" >> $GITHUB_ENV
+          branch_name=$(echo "$url" | awk -F/ '{print $7}')
+          if [ -z "${{ inputs.repoBranch }}" ]; then
+            if [ -z "$branch_name" ]; then
+              branch_name="main"
+            fi
+          else
+            branch_name="${{ inputs.repoBranch }}"
+          fi
+          echo 'branch_name='$branch_name >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repository }}
+          repository: "${{ env.username }}/${{ env.repo_name }}"
           submodules: recursive
+          ref: ${{ inputs.repoBranch }}
+          github-server-url: ${{ env.hostname }}
 
       # Set Current Date As Env Variable
       - name: Set current date as env variable
         run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      # Set Repository Info Into Env Variable
-      - name: Set repository name as env variable
-        run: |
-          echo "repository_name=$(echo '${{ inputs.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
-          echo "author_name=$(echo '${{ inputs.repository }}' | awk -F '/' '{print $1}')" >> $GITHUB_ENV
 
       - name: Set Up JDK
         uses: actions/setup-java@v3
@@ -77,11 +95,11 @@ jobs:
       #   run: ./gradlew build
 
       # Create APK Debug
-      - name: Build apk debug for ${{ env.repository_name }}
+      - name: Build apk debug for ${{ env.repo_name }}
         run: ./gradlew assembleDebug
 
       # Create APK Release
-      - name: Build apk release for ${{ env.repository_name }}
+      - name: Build apk release for ${{ env.repo_name }}
         run: ./gradlew assemble
 
       - name: Get Output Directory
@@ -108,16 +126,16 @@ jobs:
 
       # Upload Artifact Build
       # Noted For Output [main_project_module]/build/outputs/apk/debug/
-      - name: Upload APK Debug - ${{ env.repository_name }}
+      - name: Upload APK Debug - ${{ env.repo_name }}
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - debug
+          name: ${{ env.date_today }} - ${{ env.repo_name }} (${{ env.username }}) - debug
           path: ${{ env.output_path }}/debug/
 
       # Noted For Output [main_project_module]/build/outputs/apk/release/
       - name: Upload APK Release - ${{ env.repository_name }}
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.date_today }} - ${{ env.repository_name }} (${{ env.author_name }}) - release signed
+          name: ${{ env.date_today }} - ${{ env.repo_name }} (${{ env.username }}) - release signed
           # path: ${{ env.output_path }}/release/
           path: ${{ steps.sign_app.outputs.signedReleaseFile }}
