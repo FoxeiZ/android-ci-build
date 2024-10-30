@@ -6,10 +6,36 @@ on:
       repository:
         description: "github repo (only need user/repo path, not full URL)"
         required: true
+      javaRuntime:
+        description: 'Select java runtime env'
+        required: true
+        type: choice
+        default: 'zulu'
+        options:
+          - temurin
+          - zulu
+          - adopt
+          - adopt-openj9
+          - liberica
+          - microsoft
+          - corretto
+          - semeru
+          - oracle
+          - dragonwell
+          - sapmachine
+          - graalvm
+      javaVersion:
+        description: 'Input your Java version'
+        required: true
+        default: '17'
+      runTestBuild:
+        description: 'Run build test before building the app'
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     if: ${{ inputs.repository }}
@@ -32,16 +58,17 @@ jobs:
       - name: Set Up JDK
         uses: actions/setup-java@v3
         with:
-          distribution: 'zulu' # See 'Supported distributions' for available options
-          java-version: '17'
+          distribution: ${{ inputs.javaRuntime }} # See 'Supported distributions' for available options
+          java-version: ${{ inputs.javaVersion }}
           cache: 'gradle'
 
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
       # Run Tests Build
-      # - name: Run gradle tests
-      #   run: ./gradlew test
+      - name: Run gradle tests
+        if: ${{ inputs.runTestBuild }}
+        run: ./gradlew test
 
       # Run Build Project
       # - name: Build gradle project
